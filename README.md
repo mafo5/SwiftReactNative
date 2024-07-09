@@ -1,79 +1,81 @@
-This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
+# Info
 
-# Getting Started
+this project shows the needed steps to migrate the inital [react-native](https://github.com/facebook/react-native) setup to pure Swift without the usage of [expo](https://github.com/expo).
 
->**Note**: Make sure you have completed the [React Native - Environment Setup](https://reactnative.dev/docs/environment-setup) instructions till "Creating a new application" step, before proceeding.
+# problem
 
-## Step 1: Start the Metro Server
+When creating a react-native project, it will create an Objective-C application delegate. After just replacing the Objective-C version with the Swift version, the run command will result in a error "No bundle URL present".
+This may have 2 reasons:
+1. the code for getting the URL changed through the years - solved by providing this repository with the swift file
+2. mismatch between running the cli command and the build setting. The react-native template doesn't set the `DEBUG` flag correctly. - solved by providing the setup steps here 
 
-First, you will need to start **Metro**, the JavaScript _bundler_ that ships _with_ React Native.
+# requirements
 
-To start Metro, run the following command from the _root_ of your React Native project:
+xcode version: see `XCODE_VERSION.md`  
+react native verison: see `package.json`
 
-```bash
-# using npm
-npm start
+# Setup
 
-# OR using Yarn
-yarn start
-```
+- `npx @react-native-community/cli@latest init SwiftReactNative`
+- open XCode
+- open `ios/SwiftReactNative.xcworkspace`
+- remove `main.m`, `AppDelegate.h` and `AppDelegate.mm`
+- select File / New / File...
+- select `Swift File`
+- select folder `ios/SwiftReactNative` and name `AppDelegate`
+- check "create bridge file" (or how it was spelled)
+- add to `SwiftReactNative-Bridge-Header.h`
+  ```c++
+   #import <React/RCTBridgeModule.h>
+   #import <React/RCTBridge.h>
+   #import <React/RCTEventDispatcher.h>
+   #import <React/RCTRootView.h>
+   #import <React/RCTUtils.h>
+   #import <React/RCTConvert.h>
+  ```
+- add to `AppDelegate.swift`
+  ```swift
+   import UIKit
+   import React
+   import Foundation
 
-## Step 2: Start your Application
+   @UIApplicationMain
+   class AppDelegate: UIResponder, UIApplicationDelegate {
+      var window: UIWindow?
+      
+      func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey : Any]? = nil) -> Bool {
+         
+         // MARK: ReactNative
+         let bridge = RCTBridge(delegate: self, launchOptions: launchOptions)!
+         let rootView = RCTRootView(bridge: bridge, moduleName: "SwiftReactNative", initialProperties: nil)
+         
+         self.window = UIWindow(frame: UIScreen.main.bounds)
+         let rootViewController = UIViewController()
+         
+         rootViewController.view = rootView
+         
+         self.window!.rootViewController = rootViewController;
+         self.window!.makeKeyAndVisible()
+         
+         return true
+      }
+   }
 
-Let Metro Bundler run in its _own_ terminal. Open a _new_ terminal from the _root_ of your React Native project. Run the following command to start your _Android_ or _iOS_ app:
-
-### For Android
-
-```bash
-# using npm
-npm run android
-
-# OR using Yarn
-yarn android
-```
-
-### For iOS
-
-```bash
-# using npm
-npm run ios
-
-# OR using Yarn
-yarn ios
-```
-
-If everything is set up _correctly_, you should see your new app running in your _Android Emulator_ or _iOS Simulator_ shortly provided you have set up your emulator/simulator correctly.
-
-This is one way to run your app — you can also run it directly from within Android Studio and Xcode respectively.
-
-## Step 3: Modifying your App
-
-Now that you have successfully run the app, let's modify it.
-
-1. Open `App.tsx` in your text editor of choice and edit some lines.
-2. For **Android**: Press the <kbd>R</kbd> key twice or select **"Reload"** from the **Developer Menu** (<kbd>Ctrl</kbd> + <kbd>M</kbd> (on Window and Linux) or <kbd>Cmd ⌘</kbd> + <kbd>M</kbd> (on macOS)) to see your changes!
-
-   For **iOS**: Hit <kbd>Cmd ⌘</kbd> + <kbd>R</kbd> in your iOS Simulator to reload the app and see your changes!
-
-## Congratulations! :tada:
-
-You've successfully run and modified your React Native App. :partying_face:
-
-### Now what?
-
-- If you want to add this new React Native code to an existing application, check out the [Integration guide](https://reactnative.dev/docs/integration-with-existing-apps).
-- If you're curious to learn more about React Native, check out the [Introduction to React Native](https://reactnative.dev/docs/getting-started).
-
-# Troubleshooting
-
-If you can't get this to work, see the [Troubleshooting](https://reactnative.dev/docs/troubleshooting) page.
-
-# Learn More
-
-To learn more about React Native, take a look at the following resources:
-
-- [React Native Website](https://reactnative.dev) - learn more about React Native.
-- [Getting Started](https://reactnative.dev/docs/environment-setup) - an **overview** of React Native and how setup your environment.
-- [Learn the Basics](https://reactnative.dev/docs/getting-started) - a **guided tour** of the React Native **basics**.
-- [Blog](https://reactnative.dev/blog) - read the latest official React Native **Blog** posts.
-- [`@facebook/react-native`](https://github.com/facebook/react-native) - the Open Source; GitHub **repository** for React Native.
+   // MARK: RCTBridgeDelegate
+   extension AppDelegate: RCTBridgeDelegate {
+      func sourceURL(for bridge: RCTBridge) -> URL? {
+         // DEBUG requires SWIFT_ACTIVE_COMPILATION_CONDITIONS to contain DEBUG in a line in your target/build settings
+         #if DEBUG
+         NSLog("use metro server url - change schema build configuration to switch to release mode")
+         return RCTBundleURLProvider.sharedSettings().jsBundleURL(forBundleRoot: "index")
+         #else
+         return Bundle.main.url(forResource: "main", withExtension: "jsbundle")
+         #endif
+      }
+   }
+  ```
+- select project `SwiftReactNative` in left File navigator
+- select target `SwiftReactNative`
+- select tab `Build Settings`
+- search for `SWIFT_ACTIVE_COMPILATION_CONDITIONS`
+- extend the selection and add `DEBUG` on the right for `Debug` on the left
